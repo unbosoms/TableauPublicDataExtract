@@ -5,8 +5,8 @@ jobs:
   Get_the_Tableau_Public_data:
     permissions:
       actions: write
-      #checks: write
-      #contents: write
+      checks: write
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
@@ -34,11 +34,5 @@ jobs:
           git add .
           git commit -m "取得したデータをpush"
           git push
-      #- name: Deploy
-      #  uses: peaceiris/actions-gh-pages@v3
-      #  with:
-      #    github_token: ${{ secrets.GITHUB_TOKEN }}
-      #    publish_dir: ./data
-      #    publish_branch: main
       - run: echo "🍏 This job's status is ${{ job.status }}."
 
