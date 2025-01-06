@@ -2,7 +2,11 @@ name: Get the data from Tableau Public
 run-name: ${{ github.actor }} is getting data from Tableau Public🚀
 on: [push]
 jobs:
-  Explore-GitHub-Actions:
+  Get_the_Tableau_Public_data:
+    permissions:
+      actions: write
+      #checks: write
+      #contents: write
     runs-on: ubuntu-latest
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
@@ -25,8 +29,8 @@ jobs:
           ls ${{ github.workspace }}
       - name: Deploy
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git add .
           git commit -m "取得したデータをpush"
           git push
