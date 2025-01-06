@@ -1,6 +1,5 @@
 import requests
 import pandas as pd
-from pandas.io.json import json_normalize
 
 # 取得するauthorの情報を指定
 profile_name = 'yuta1985'
@@ -40,5 +39,5 @@ for workbookRepoUrl in workbookRepoUrl_list:
     result = requests.get(url=url)
     json = result.json()
     workbook_details.append(json)
-
-json_normalize(workbook_details).to_csv('./data/sample.csv')
+    
+pd.json_normalize(workbook_details).to_csv('./data/sample.csv')
