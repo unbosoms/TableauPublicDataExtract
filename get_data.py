@@ -46,5 +46,5 @@ JST = datetime.timezone(t_delta, 'JST')
 now = datetime.datetime.now(JST) 
 d = now.strftime('%Y%m%d_%H%M%S')
 df = pd.json_normalize(workbook_details)
-df['get date'] = d
+df['getDate'] = now
 df.to_csv(f'./data/{d}_data.csv')
