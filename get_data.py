@@ -44,7 +44,8 @@ for workbookRepoUrl in workbookRepoUrl_list:
 t_delta = datetime.timedelta(hours=9)
 JST = datetime.timezone(t_delta, 'JST')
 now = datetime.datetime.now(JST) 
-d = now.strftime('%Y%m%d_%H%M%S')
+d_file = now.strftime('%Y%m%d_%H%M%S')
+d_data = now.strftime('%Y/%m/%d %H:%M:%S')
 df = pd.json_normalize(workbook_details)
-df['getDate'] = now
-df.to_csv(f'./data/{d}_data.csv')
+df['getDate'] = d_data
+df.to_csv(f'./data/{d_file}_data.csv')
