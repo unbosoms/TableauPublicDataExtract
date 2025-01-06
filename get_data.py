@@ -9,7 +9,8 @@ workbookRepoUrl_list = []
 
 # 初期値の設定
 start = 0 # 0番目から読み込み開始
-count = 50 # 50個ずつ読み込んでいく
+# count = 50 # 50個ずつ読み込んでいく
+count = 5 # 5個ずつ読み込んでいく
 
 # workbookRepoUrlの一覧を取得する
 while(1):
@@ -22,6 +23,8 @@ while(1):
     for content in json_data['contents']:
         workbookRepoUrl_list.append(content['workbookRepoUrl'])
     
+    break
+
     # 次の開始番号を取得する
     next_num = json_data['next']
     
