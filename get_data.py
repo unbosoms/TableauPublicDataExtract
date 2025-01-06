@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import datetime
 
 # 取得するauthorの情報を指定
 profile_name = 'yuta1985'
@@ -39,5 +40,9 @@ for workbookRepoUrl in workbookRepoUrl_list:
     result = requests.get(url=url)
     json = result.json()
     workbook_details.append(json)
-    
-pd.json_normalize(workbook_details).to_csv('./data/sample.csv')
+
+t_delta = datetime.timedelta(hours=9)
+JST = datetime.timezone(t_delta, 'JST')
+now = datetime.datetime.now(JST) 
+d = now.strftime('%Y%m%d_%H%M%S')
+pd.json_normalize(workbook_details).to_csv(f'./data/{d}_data.csv')
