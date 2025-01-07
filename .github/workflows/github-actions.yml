@@ -2,7 +2,7 @@ name: Get the data from Tableau Public
 run-name: ${{ github.actor }} is getting data from Tableau Public🚀
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '0 * * * *'
 jobs:
   Get_the_Tableau_Public_data:
     permissions:
