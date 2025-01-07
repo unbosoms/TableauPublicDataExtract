@@ -50,12 +50,12 @@ for workbookRepoUrl in workbookRepoUrl_list:
 # 取得データをcsvとしてデータを書き出す
 #################################
 
-# JSTの現在時刻を取得
+# ファイル名とデータに実行時間を記録するためにJSTの現在時刻を取得
 t_delta = datetime.timedelta(hours=9)
 JST = datetime.timezone(t_delta, 'JST')
 now = datetime.datetime.now(JST) 
 
-# ファイル名用とデータに書き込むようの日付形式を定義
+# ファイル名用とデータに書き込むようの日付形式を分けた別々の変数を定義
 d_file = now.strftime('%Y%m%d_%H%M%S')
 d_data = now.strftime('%Y/%m/%d %H:%M:%S')
 
