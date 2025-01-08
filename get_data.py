@@ -45,6 +45,9 @@ for workbookRepoUrl in workbookRepoUrl_list:
     result = requests.get(url=url)
     json = result.json()
     workbook_details.append(json)
+    if 'error.id' in json:
+        print('Error was occured.')
+        print(json)
 
 #################################
 # 取得データをcsvとしてデータを書き出す
