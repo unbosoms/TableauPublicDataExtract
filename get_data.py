@@ -25,19 +25,38 @@ count = 50 # 50個ずつ読み込んでいく
 
 # workbookRepoUrlの一覧を取得する
 while True:
-    # APIを叩いてjsonデータを取得
-    url = f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}&visibility=NON_HIDDEN'
-    result = requests.get(url=url, headers=headers)
+    # 複数のURL候補を順番に試す（APIパラメータ変更対応）
+    url_candidates = [
+        f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}&visibility=NON_HIDDEN',
+        f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count=20&visibility=NON_HIDDEN',
+        f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}',
+        f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count=20',
+    ]
 
-    if result.status_code != 200:
-        print(f'APIエラー: HTTPステータス {result.status_code}')
-        try:
-            print(f'レスポンス: {result.json()}')
-        except Exception:
-            print(f'レスポンス (テキスト): {result.text[:1000]}')
+    result = None
+    used_url = None
+    for candidate in url_candidates:
+        r = requests.get(url=candidate, headers=headers)
+        print(f'試行URL: {candidate} → HTTP {r.status_code}')
+        if r.status_code == 200:
+            result = r
+            used_url = candidate
+            break
+
+    if result is None:
+        print('全てのURL候補でAPIエラーが発生しました')
+        for candidate in url_candidates:
+            r = requests.get(url=candidate, headers=headers)
+            try:
+                print(f'  {candidate} → {r.json()}')
+            except Exception:
+                print(f'  {candidate} → {r.text[:300]}')
         sys.exit(1)
 
     json_data = result.json()
+    # 成功したURL形式に合わせてcount値を更新（2回目以降のページネーション用）
+    if 'count=20' in used_url:
+        count = 20
 
     if 'contents' not in json_data:
         print(f'APIレスポンスの形式が変更された可能性があります')
