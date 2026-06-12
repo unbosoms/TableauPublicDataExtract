@@ -1,9 +1,17 @@
 import requests
 import pandas as pd
 import datetime
+import sys
 
 # 取得するauthorの情報を指定
 profile_name = 'yuta1985'
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+    'Referer': 'https://public.tableau.com/',
+}
 
 #################################
 # profile_nameのすべてのworkbookのworkbookRepoUrlを取得する
@@ -16,21 +24,36 @@ start = 0 # 0番目から読み込み開始
 count = 50 # 50個ずつ読み込んでいく
 
 # workbookRepoUrlの一覧を取得する
-while(1):
+while True:
     # APIを叩いてjsonデータを取得
     url = f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}&visibility=NON_HIDDEN'
-    result = requests.get(url=url)
+    result = requests.get(url=url, headers=headers)
+
+    if result.status_code != 200:
+        print(f'APIエラー: HTTPステータス {result.status_code}')
+        try:
+            print(f'レスポンス: {result.json()}')
+        except Exception:
+            print(f'レスポンス (テキスト): {result.text[:1000]}')
+        sys.exit(1)
+
     json_data = result.json()
-    
+
+    if 'contents' not in json_data:
+        print(f'APIレスポンスの形式が変更された可能性があります')
+        print(f'取得されたキー: {list(json_data.keys())}')
+        print(f'レスポンス内容: {str(json_data)[:1000]}')
+        sys.exit(1)
+
     # jsonデータからworkbookRepoUrlを取得する
     for content in json_data['contents']:
         workbookRepoUrl_list.append(content['workbookRepoUrl'])
-    
+
     # 次の開始番号を取得する
-    next_num = json_data['next']
-    
+    next_num = json_data.get('next')
+
     # 次の番号がない場合はループを抜ける
-    if next_num == None:
+    if next_num is None:
         break
     # 次の番号があれば次の開始番号を記録して繰り返す
     else:
@@ -42,7 +65,7 @@ while(1):
 workbook_details = []
 for workbookRepoUrl in workbookRepoUrl_list:
     url = f'https://public.tableau.com/profile/api/single_workbook/{workbookRepoUrl}?'
-    result = requests.get(url=url)
+    result = requests.get(url=url, headers=headers)
     json = result.json()
     workbook_details.append(json)
     if 'error.id' in json:
@@ -56,7 +79,7 @@ for workbookRepoUrl in workbookRepoUrl_list:
 # ファイル名とデータに実行時間を記録するためにJSTの現在時刻を取得
 t_delta = datetime.timedelta(hours=9)
 JST = datetime.timezone(t_delta, 'JST')
-now = datetime.datetime.now(JST) 
+now = datetime.datetime.now(JST)
 
 # ファイル名用とデータに書き込むようの日付形式を分けた別々の変数を定義
 d_file = now.strftime('%Y%m%d_%H%M%S')
