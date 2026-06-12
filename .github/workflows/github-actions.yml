@@ -3,6 +3,7 @@ run-name: ${{ github.actor }} is getting data from Tableau Public🚀
 on:
   schedule:
     - cron: '0 * * * *'
+  workflow_dispatch:
 jobs:
   Get_the_Tableau_Public_data:
     permissions:
