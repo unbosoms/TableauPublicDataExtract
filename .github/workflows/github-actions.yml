@@ -7,14 +7,13 @@ on:
 jobs:
   Get_the_Tableau_Public_data:
     permissions:
+      id-token: write
       actions: write
       checks: write
       contents: write
     runs-on: ubuntu-latest
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Set up Python 3.11
@@ -24,13 +23,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -r requirements.txt
+      - name: Configure AWS credentials
+        if: ${{ vars.S3_BUCKET != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
       - name: Run script
+        env:
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PREFIX: ${{ vars.S3_PREFIX || 'tableau_public' }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
         run: |
           python get_data.py
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
-      - name: Deploy
+      - name: Deploy (S3未設定時のみ従来のCSV push)
+        if: ${{ vars.S3_BUCKET == '' }}
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
