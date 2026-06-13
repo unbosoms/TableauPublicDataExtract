@@ -3,6 +3,8 @@ import pandas as pd
 import datetime
 import sys
 
+import s3_store
+
 # 取得するauthorの情報を指定
 profile_name = 'yuta1985'
 
@@ -73,7 +75,9 @@ for workbookRepoUrl in workbookRepoUrl_list:
         print(json)
 
 #################################
-# 取得データをcsvとしてデータを書き出す
+# 取得データを書き出す
+# - S3_BUCKET設定時: Parquet形式でS3へ（metrics + attributes）
+# - 未設定時: 従来どおりCSVをdataフォルダへ
 #################################
 
 # ファイル名とデータに実行時間を記録するためにJSTの現在時刻を取得
@@ -89,5 +93,30 @@ d_data = now.strftime('%Y/%m/%d %H:%M:%S')
 df = pd.json_normalize(workbook_details)
 df['getDate'] = d_data
 
-# dataフォルダに書き出す
-df.to_csv(f'./data/{d_file}_data.csv')
+if s3_store.S3_BUCKET:
+    snapshot_ts = now.replace(tzinfo=None)  # JSTのnaive timestampとして保存
+    s3 = s3_store.make_client()
+
+    # 指標の時系列を毎回追記
+    metrics = s3_store.build_metrics(df, snapshot_ts)
+    s3_store.upload_parquet(s3, metrics, s3_store.metrics_key(snapshot_ts))
+    print(f'metrics: {len(metrics)}行をアップロードしました')
+
+    # 属性は前回からの変更行のみ追記（SCD2）
+    row_hashes = s3_store.compute_row_hashes(df)
+    prev_hashes = s3_store.load_previous_hashes(s3)
+    changed = s3_store.detect_changes(df, row_hashes, prev_hashes)
+    if changed.any():
+        attrs = s3_store.build_attributes(df[changed], snapshot_ts, row_hashes[changed])
+        s3_store.upload_parquet(s3, attrs, s3_store.attributes_key(snapshot_ts))
+        print(f'attributes: 変更{len(attrs)}行をアップロードしました')
+    else:
+        print('attributes: 変更なし')
+
+    # 次回の変更検知用にハッシュを保存（削除されたworkbookの履歴も残す）
+    urls = df[s3_store.KEY_COLUMN].astype(str)
+    new_hashes = {**prev_hashes, **dict(zip(urls, row_hashes))}
+    s3_store.save_hashes(s3, new_hashes)
+else:
+    # dataフォルダに書き出す（従来方式）
+    df.to_csv(f'./data/{d_file}_data.csv')
