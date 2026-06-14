@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import datetime
 import sys
+import time
 
 import s3_store
 
@@ -14,6 +15,28 @@ headers = {
     'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
     'Referer': 'https://public.tableau.com/',
 }
+
+
+def get_with_retry(url, max_retries=3, retry_wait=30):
+    """一時的な403/5xxエラー時にリトライするGETリクエスト"""
+    for attempt in range(1, max_retries + 1):
+        result = requests.get(url=url, headers=headers, timeout=30)
+        if result.status_code == 200:
+            return result
+        # 一時的なエラー（403/429/5xx）はリトライ
+        if attempt < max_retries and result.status_code in (403, 429, 500, 502, 503, 504):
+            print(f'HTTPステータス {result.status_code}（試行 {attempt}/{max_retries}）'
+                  f' → {retry_wait}秒後にリトライします')
+            time.sleep(retry_wait)
+            continue
+        # 最終試行または恒久的なエラー
+        print(f'APIエラー: HTTPステータス {result.status_code}')
+        try:
+            print(f'レスポンス: {result.json()}')
+        except Exception:
+            print(f'レスポンス (テキスト): {result.text[:1000]}')
+        sys.exit(1)
+    return result  # unreachable
 
 #################################
 # profile_nameのすべてのworkbookのworkbookRepoUrlを取得する
@@ -29,15 +52,7 @@ count = 50 # 50個ずつ読み込んでいく
 while True:
     # APIを叩いてjsonデータを取得
     url = f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}&visibility=NON_HIDDEN'
-    result = requests.get(url=url, headers=headers)
-
-    if result.status_code != 200:
-        print(f'APIエラー: HTTPステータス {result.status_code}')
-        try:
-            print(f'レスポンス: {result.json()}')
-        except Exception:
-            print(f'レスポンス (テキスト): {result.text[:1000]}')
-        sys.exit(1)
+    result = get_with_retry(url)
 
     json_data = result.json()
 
@@ -67,7 +82,7 @@ while True:
 workbook_details = []
 for workbookRepoUrl in workbookRepoUrl_list:
     url = f'https://public.tableau.com/profile/api/single_workbook/{workbookRepoUrl}?'
-    result = requests.get(url=url, headers=headers)
+    result = get_with_retry(url)
     json = result.json()
     workbook_details.append(json)
     if 'error.id' in json:
