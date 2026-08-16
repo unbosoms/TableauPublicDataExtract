@@ -35,8 +35,100 @@ def get_with_retry(url, max_retries=3, retry_wait=30):
             print(f'レスポンス: {result.json()}')
         except Exception:
             print(f'レスポンス (テキスト): {result.text[:1000]}')
-        sys.exit(1)
-    return result  # unreachable
+        raise RuntimeError(f'API失敗: HTTPステータス {result.status_code}')
+
+
+def run():
+    #################################
+    # profile_nameのすべてのworkbookのworkbookRepoUrlを取得する
+    #################################
+
+    workbookRepoUrl_list = []
+
+    # 初期値の設定
+    start = 0  # 0番目から読み込み開始
+    count = 50  # 50個ずつ読み込んでいく
+
+    # workbookRepoUrlの一覧を取得する
+    while True:
+        url = f'https://public.tableau.com/public/apis/workbooks?profileName={profile_name}&start={start}&count={count}&visibility=NON_HIDDEN'
+        result = get_with_retry(url)
+        json_data = result.json()
+
+        if 'contents' not in json_data:
+            print(f'APIレスポンスの形式が変更された可能性があります')
+            print(f'取得されたキー: {list(json_data.keys())}')
+            print(f'レスポンス内容: {str(json_data)[:1000]}')
+            raise RuntimeError('APIレスポンスに contents キーがありません')
+
+        for content in json_data['contents']:
+            workbookRepoUrl_list.append(content['workbookRepoUrl'])
+
+        next_num = json_data.get('next')
+
+        # 次の番号がない、または-1（終了シグナル）の場合はループを抜ける
+        if next_num is None or next_num < 0:
+            break
+        else:
+            start = next_num
+
+    #################################
+    # workbookのdetailを取得する
+    #################################
+    workbook_details = []
+    for workbookRepoUrl in workbookRepoUrl_list:
+        url = f'https://public.tableau.com/profile/api/single_workbook/{workbookRepoUrl}?'
+        result = get_with_retry(url)
+        json = result.json()
+        workbook_details.append(json)
+        if 'error.id' in json:
+            print('Error was occured.')
+            print(json)
+
+    #################################
+    # 取得データを書き出す
+    # - S3_BUCKET設定時: Parquet形式でS3へ（metrics + attributes）
+    # - 未設定時: 従来どおりCSVをdataフォルダへ
+    #################################
+
+    t_delta = datetime.timedelta(hours=9)
+    JST = datetime.timezone(t_delta, 'JST')
+    now = datetime.datetime.now(JST)
+
+    d_file = now.strftime('%Y%m%d_%H%M%S')
+    d_data = now.strftime('%Y/%m/%d %H:%M:%S')
+
+    df = pd.json_normalize(workbook_details)
+    df['getDate'] = d_data
+
+    if s3_store.S3_BUCKET:
+        snapshot_ts = now.replace(tzinfo=None)
+        s3 = s3_store.make_client()
+
+        metrics = s3_store.build_metrics(df, snapshot_ts)
+        s3_store.upload_parquet(s3, metrics, s3_store.metrics_key(snapshot_ts))
+        print(f'metrics: {len(metrics)}行をアップロードしました')
+
+        row_hashes = s3_store.compute_row_hashes(df)
+        prev_hashes = s3_store.load_previous_hashes(s3)
+        changed = s3_store.detect_changes(df, row_hashes, prev_hashes)
+        if changed.any():
+            attrs = s3_store.build_attributes(df[changed], snapshot_ts, row_hashes[changed])
+            s3_store.upload_parquet(s3, attrs, s3_store.attributes_key(snapshot_ts))
+            print(f'attributes: 変更{len(attrs)}行をアップロードしました')
+        else:
+            print('attributes: 変更なし')
+
+        urls = df[s3_store.KEY_COLUMN].astype(str)
+        new_hashes = {**prev_hashes, **dict(zip(urls, row_hashes))}
+        s3_store.save_hashes(s3, new_hashes)
+    else:
+        df.to_csv(f'./data/{d_file}_data.csv')
+
+
+if __name__ == '__main__':
+    run()
+
 
 #################################
 # profile_nameのすべてのworkbookのworkbookRepoUrlを取得する
