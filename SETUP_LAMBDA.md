@@ -30,7 +30,7 @@ EventBridge Scheduler（毎時0分、確実に実行）
    - 可視性: プライベート
    - リポジトリ名: `tableau-data-extractor`
 3. 作成後、リポジトリのURIをコピーしておく
-   - 形式: `665556285084.dkr.ecr.ap-northeast-1.amazonaws.com/tableau-data-extractor`
+   - 形式: `<ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/tableau-data-extractor`
 
 ---
 
@@ -46,7 +46,7 @@ aws ecr get-login-password --region ap-northeast-1 \
 
 # イメージをビルド（M1/M2 MacはARM64ネイティブビルドで高速）
 cd /path/to/TableauPublicDataExtract
-docker build --platform linux/arm64 -t tableau-data-extractor .
+docker build --platform linux/arm64 --provenance=false -t tableau-data-extractor .
 
 # タグ付けしてプッシュ
 docker tag tableau-data-extractor:latest \
@@ -63,7 +63,7 @@ docker push \
 2. **信頼されたエンティティ**: `AWS のサービス` → `Lambda`
 3. **許可ポリシーをアタッチ**:
    - `AWSLambdaBasicExecutionRole`（CloudWatch Logsへの書き込み）
-   - `tableau-s3-write`（ステップ3で作成済みのポリシー）
+   - `tableau-s3-write`（SETUP_S3.md で作成済みのポリシー）
 4. **ロール名**: `lambda-tableau-data`
 5. 作成後、ロールのARNをコピーしておく
 
@@ -87,7 +87,8 @@ docker push \
    |---|---|
    | `S3_BUCKET` | `tableau-data-yuta1985` |
    | `S3_PREFIX` | `tableau_public` |
-   | `AWS_DEFAULT_REGION` | `ap-northeast-1` |
+
+   リージョンはLambdaが自動設定するため指定不要です（`AWS_DEFAULT_REGION` / `AWS_REGION` は予約済みキーで設定できません）。
 
 ---
 
@@ -127,7 +128,7 @@ Actionsタブからワークフローを「Disable workflow」してください
 ## イメージ更新手順（コード変更時）
 
 ```bash
-docker build --platform linux/arm64 -t tableau-data-extractor .
+docker build --platform linux/arm64 --provenance=false -t tableau-data-extractor .
 docker tag tableau-data-extractor:latest \
   <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/tableau-data-extractor:latest
 docker push \
