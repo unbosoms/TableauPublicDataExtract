@@ -1,7 +1,6 @@
 import requests
 import pandas as pd
 import datetime
-import sys
 import time
 
 import s3_store
@@ -56,7 +55,7 @@ def run():
         json_data = result.json()
 
         if 'contents' not in json_data:
-            print(f'APIレスポンスの形式が変更された可能性があります')
+            print('APIレスポンスの形式が変更された可能性があります')
             print(f'取得されたキー: {list(json_data.keys())}')
             print(f'レスポンス内容: {str(json_data)[:1000]}')
             raise RuntimeError('APIレスポンスに contents キーがありません')
@@ -79,11 +78,11 @@ def run():
     for workbookRepoUrl in workbookRepoUrl_list:
         url = f'https://public.tableau.com/profile/api/single_workbook/{workbookRepoUrl}?'
         result = get_with_retry(url)
-        json = result.json()
-        workbook_details.append(json)
-        if 'error.id' in json:
+        workbook_json = result.json()
+        workbook_details.append(workbook_json)
+        if 'error.id' in workbook_json:
             print('Error was occured.')
-            print(json)
+            print(workbook_json)
 
     #################################
     # 取得データを書き出す
